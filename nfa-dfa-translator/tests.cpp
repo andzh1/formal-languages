@@ -1,5 +1,4 @@
-// #include "Finite_automations.h"
-#include "A.cpp"
+#include "Finite_automations.h"
 
 void Convert_To_DFA_Test() {
     freopen("tests.txt", "r", stdin);
