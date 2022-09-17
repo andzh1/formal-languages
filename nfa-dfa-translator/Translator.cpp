@@ -6,10 +6,6 @@ Then int k, and k indexes of terminate vertices in random order.
 Last number - index of starting vertice (by default = 0)
 */
 
-const std::vector<char> LETTERS({'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
-                                'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 
-                                'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'});
-
 typedef uint64_t set;
 bool contains(set set, int index) {
     return set & (1 << index);
@@ -31,7 +27,20 @@ protected:
         bool _is_terminate = false;
     };
     int index_of_starting_vertice = 0;
+    std::set<char> _letters;
+    std::map<char, int> index_of_letter;
     FiniteAutomata(int index = 0): index_of_starting_vertice(index) {}
+    FiniteAutomata(const std::vector<Edge>& edges, int index = 0): index_of_starting_vertice(index) {
+        for (const Edge& e : edges) {
+            _letters.insert(e.letter);
+        }
+        auto iter_in_letters = _letters.begin();
+        int index_of_current_letter = 0;
+        while (iter_in_letters != _letters.end()) {
+            index_of_letter[*iter_in_letters] = index_of_current_letter;
+            ++index_of_current_letter; ++iter_in_letters;
+        }
+    }
 };
 
 class DeterministicFiniteAutomata : protected FiniteAutomata {
@@ -41,7 +50,7 @@ public:
     
     DeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
     const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0):
-    FiniteAutomata(index_of_starting_vertice) {
+    FiniteAutomata(edges, index_of_starting_vertice) {
         for (const Edge& e : edges) {
             _vertices[e.start]._edges.push_back(e);
         }
@@ -86,7 +95,7 @@ std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomata& d
             out << edge << '\n';
         }
     }
-    out << "\n Terminate vertices:\n";
+    out << "\nTerminate vertices:\n";
     for (const auto& vertice : dfa._vertices) {
         if (vertice.second._is_terminate) out << set_as_string(vertice.first);
     }
@@ -98,7 +107,7 @@ public:
     std::vector<Vertice> _vertices;
     NondeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
     const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0):
-    FiniteAutomata(index_of_starting_vertice) {
+    FiniteAutomata(edges, index_of_starting_vertice) {
         _vertices.resize(number_of_vertices);
         for (const Edge& e : edges) {
             _vertices[e.start]._edges.push_back(e);
@@ -132,17 +141,18 @@ public:
         while (!indexes_of_vertices_to_proceed.empty()) {
             set current_set = indexes_of_vertices_to_proceed.front();
             indexes_of_vertices_to_proceed.pop();
-            std::vector<Edge> new_edges (LETTERS.size());
+            std::vector<Edge> new_edges (_letters.size());
+            auto iter_in_letters = _letters.begin();
             for (int i = 0; i < new_edges.size(); ++i) {
-                new_edges[i].letter = LETTERS[i];
+                new_edges[i].letter = *iter_in_letters;
+                ++iter_in_letters;
                 new_edges[i].start = current_set;
                 new_edges[i].end = 0;
             }
             for (const Vertice& vectice : _vertices) {
                 for (const Edge& edge : vectice._edges) {
                     if (contains(current_set, edge.start)) {
-                        new_edges[edge.letter - 'a'].end |= (1 << edge.end); // TODO: Fix <edge.letter - 'a'> - need to get index somehow else
-                        
+                        new_edges[index_of_letter.at(edge.letter)].end |= (1 << edge.end); 
                     }
                 }
             }
@@ -184,5 +194,3 @@ signed main() {
     auto dfa = hfa.convert_to_DFA();
     std::cout << dfa;
 }
-
-

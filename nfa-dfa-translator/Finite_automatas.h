@@ -6,10 +6,6 @@ Then int k, and k indexes of terminate vertices in random order.
 Last number - index of starting vertice (by default = 0)
 */
 
-const std::vector<char> LETTERS({'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 
-                                'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 
-                                'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'});
-
 typedef uint64_t set;
 bool contains(set set, int index);
 
@@ -29,7 +25,12 @@ protected:
         bool _is_terminate = false;
     };
     int index_of_starting_vertice = 0;
+    std::set<char> _letters;
+    std::map<char, int> index_of_letter;
+
     FiniteAutomata(int index = 0);
+    FiniteAutomata(const std::vector<Edge>& edges, int index = 0);
+
 };
 
 class DeterministicFiniteAutomata : protected FiniteAutomata {

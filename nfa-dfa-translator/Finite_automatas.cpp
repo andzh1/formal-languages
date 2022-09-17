@@ -7,15 +7,26 @@ bool contains(set set, int index) {
 }
 
 
-
-
 FiniteAutomata::FiniteAutomata(int index): index_of_starting_vertice(index) {}
+
+FiniteAutomata::FiniteAutomata(const std::vector<Edge>& edges, int index): index_of_starting_vertice(index) {
+    for (const Edge& e : edges) {
+        _letters.insert(e.letter);
+    }
+    auto iter_in_letters = _letters.begin();
+    int index_of_current_letter = 0;
+    while (iter_in_letters != _letters.end()) {
+        index_of_letter[*iter_in_letters] = index_of_current_letter;
+        ++index_of_current_letter; ++iter_in_letters;
+    }
+}
+
 
 DeterministicFiniteAutomata::DeterministicFiniteAutomata(): FiniteAutomata() {}
 
 DeterministicFiniteAutomata::DeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
 const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_verticeFiniteAutomata):
-FiniteAutomata(index_of_starting_vertice) {
+FiniteAutomata(edges, index_of_starting_vertice) {
     for (const Edge& e : edges) {
         _vertices[e.start]._edges.push_back(e);
     }
@@ -66,7 +77,7 @@ std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomata& d
 
 NondeterministicFiniteAutomata::NondeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
 const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice):
-FiniteAutomata(index_of_starting_vertice) {
+FiniteAutomata(edges, index_of_starting_vertice) {
     _vertices.resize(number_of_vertices);
     for (const Edge& e : edges) {
         _vertices[e.start]._edges.push_back(e);
@@ -96,17 +107,18 @@ DeterministicFiniteAutomata NondeterministicFiniteAutomata::convert_to_DFA() con
     while (!indexes_of_vertices_to_proceed.empty()) {
         set current_set = indexes_of_vertices_to_proceed.front();
         indexes_of_vertices_to_proceed.pop();
-        std::vector<Edge> new_edges (LETTERS.size());
+        std::vector<Edge> new_edges (_letters.size());
+        auto iter_in_letters = _letters.begin();
         for (int i = 0; i < new_edges.size(); ++i) {
-            new_edges[i].letter = LETTERS[i];
+            new_edges[i].letter = *iter_in_letters;
+            ++iter_in_letters;
             new_edges[i].start = current_set;
             new_edges[i].end = 0;
         }
         for (const Vertice& vectice : _vertices) {
             for (const Edge& edge : vectice._edges) {
                 if (contains(current_set, edge.start)) {
-                    new_edges[edge.letter - 'a'].end |= (1 << edge.end); // TODO: Fix <edge.letter - 'a'> - need to get index somehow else
-                    
+                    new_edges[index_of_letter.at(edge.letter)].end |= (1 << edge.end); 
                 }
             }
         }
