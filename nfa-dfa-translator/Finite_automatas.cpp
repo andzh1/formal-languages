@@ -1,4 +1,4 @@
-#include "Finite_automations.h"
+#include "Finite_automatas.h"
 
 
 typedef uint64_t set;
@@ -9,13 +9,13 @@ bool contains(set set, int index) {
 
 
 
-FiniteAutomation::FiniteAutomation(int index): index_of_starting_vertice(index) {}
+FiniteAutomata::FiniteAutomata(int index): index_of_starting_vertice(index) {}
 
-DeterministicFiniteAutomation::DeterministicFiniteAutomation(): FiniteAutomation() {}
+DeterministicFiniteAutomata::DeterministicFiniteAutomata(): FiniteAutomata() {}
 
-DeterministicFiniteAutomation::DeterministicFiniteAutomation(const std::vector<Edge>& edges, int number_of_vertices, 
-const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_verticeFiniteAutomation):
-FiniteAutomation(index_of_starting_vertice) {
+DeterministicFiniteAutomata::DeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
+const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_verticeFiniteAutomata):
+FiniteAutomata(index_of_starting_vertice) {
     for (const Edge& e : edges) {
         _vertices[e.start]._edges.push_back(e);
     }
@@ -24,11 +24,11 @@ FiniteAutomation(index_of_starting_vertice) {
     }
 }
 
-bool DeterministicFiniteAutomation::contains_vertice(const set& set) const {
+bool DeterministicFiniteAutomata::contains_vertice(const set& set) const {
     return _vertices.find(set) != _vertices.end();
 }
 
-void DeterministicFiniteAutomation::insert_vertice(const set& set, const Vertice& vertice) {
+void DeterministicFiniteAutomata::insert_vertice(const set& set, const Vertice& vertice) {
     _vertices[set] = vertice;
 }
 
@@ -50,7 +50,7 @@ std::ostream& operator<<(std::ostream& out, const Edge& edge) {
     return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomation& dfa) {
+std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomata& dfa) {
     out << "Edges:\n";
     for (const auto& vertice : dfa._vertices) {
         for (const Edge& edge : vertice.second._edges) {
@@ -64,9 +64,9 @@ std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomation&
     return out;
 }
 
-NondeterministicFiniteAutomation::NondeterministicFiniteAutomation(const std::vector<Edge>& edges, int number_of_vertices, 
+NondeterministicFiniteAutomata::NondeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
 const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice):
-FiniteAutomation(index_of_starting_vertice) {
+FiniteAutomata(index_of_starting_vertice) {
     _vertices.resize(number_of_vertices);
     for (const Edge& e : edges) {
         _vertices[e.start]._edges.push_back(e);
@@ -77,20 +77,20 @@ FiniteAutomation(index_of_starting_vertice) {
 }
 
 
-size_t NondeterministicFiniteAutomation::size() const {
+size_t NondeterministicFiniteAutomata::size() const {
     return _vertices.size();
 }
 
 
-bool NondeterministicFiniteAutomation::is_terminate(const set& set) const {
+bool NondeterministicFiniteAutomata::is_terminate(const set& set) const {
     for (int i = 0; i < _vertices.size(); ++i) {
         if (contains(set, i) && _vertices[i]._is_terminate) return true;
     }
     return false;
 }
 
-DeterministicFiniteAutomation NondeterministicFiniteAutomation::convert_to_DFA() const {
-    DeterministicFiniteAutomation equivalent_DFA;
+DeterministicFiniteAutomata NondeterministicFiniteAutomata::convert_to_DFA() const {
+    DeterministicFiniteAutomata equivalent_DFA;
     std::queue<set> indexes_of_vertices_to_proceed;
     indexes_of_vertices_to_proceed.push(1 << index_of_starting_vertice);
     while (!indexes_of_vertices_to_proceed.empty()) {
@@ -143,6 +143,6 @@ DeterministicFiniteAutomation NondeterministicFiniteAutomation::convert_to_DFA()
 //     for (int& index : terminates) std::cin >> index;
 //     int index_of_starting_vertice;
 //     std::cin >> index_of_starting_vertice;
-//     NondeterministicFiniteAutomation hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
+//     NondeterministicFiniteAutomata hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
 //     auto dfa = hfa.convert_to_DFA();
 // }

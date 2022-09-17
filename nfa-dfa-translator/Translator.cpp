@@ -23,7 +23,7 @@ struct Edge {
 };
 
 
-class FiniteAutomation
+class FiniteAutomata
 {
 protected:
     struct Vertice {
@@ -31,17 +31,17 @@ protected:
         bool _is_terminate = false;
     };
     int index_of_starting_vertice = 0;
-    FiniteAutomation(int index = 0): index_of_starting_vertice(index) {}
+    FiniteAutomata(int index = 0): index_of_starting_vertice(index) {}
 };
 
-class DeterministicFiniteAutomation : protected FiniteAutomation {
+class DeterministicFiniteAutomata : protected FiniteAutomata {
     std::map<set, Vertice> _vertices;
 public:
-    DeterministicFiniteAutomation(): FiniteAutomation() {}
+    DeterministicFiniteAutomata(): FiniteAutomata() {}
     
-    DeterministicFiniteAutomation(const std::vector<Edge>& edges, int number_of_vertices, 
+    DeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
     const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0):
-    FiniteAutomation(index_of_starting_vertice) {
+    FiniteAutomata(index_of_starting_vertice) {
         for (const Edge& e : edges) {
             _vertices[e.start]._edges.push_back(e);
         }
@@ -58,7 +58,7 @@ public:
         _vertices[set] = vertice;
     }
 
-    friend std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomation& dfa);
+    friend std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomata& dfa);
 };
 
 std::string set_as_string(const set& set_to_print) {
@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& out, const Edge& edge) {
     return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomation& dfa) {
+std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomata& dfa) {
     out << "Edges:\n";
     for (const auto& vertice : dfa._vertices) {
         for (const Edge& edge : vertice.second._edges) {
@@ -93,12 +93,12 @@ std::ostream& operator<<(std::ostream& out, const DeterministicFiniteAutomation&
     return out;
 }
 
-class NondeterministicFiniteAutomation : protected FiniteAutomation {
+class NondeterministicFiniteAutomata : protected FiniteAutomata {
 public:
     std::vector<Vertice> _vertices;
-    NondeterministicFiniteAutomation(const std::vector<Edge>& edges, int number_of_vertices, 
+    NondeterministicFiniteAutomata(const std::vector<Edge>& edges, int number_of_vertices, 
     const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0):
-    FiniteAutomation(index_of_starting_vertice) {
+    FiniteAutomata(index_of_starting_vertice) {
         _vertices.resize(number_of_vertices);
         for (const Edge& e : edges) {
             _vertices[e.start]._edges.push_back(e);
@@ -122,11 +122,11 @@ private:
 
 public:
     /* Converts nondeterministic finite automaton to a deterministic one; 
-    it correctly and fastly works for automations of size <= 60.
+    it correctly and fastly works for Automatas of size <= 60.
     We also assume that letter on edges are English lowercase letters, 
     but you can set it by changing constant LETTERS*/
-    DeterministicFiniteAutomation convert_to_DFA() const {
-        DeterministicFiniteAutomation equivalent_DFA;
+    DeterministicFiniteAutomata convert_to_DFA() const {
+        DeterministicFiniteAutomata equivalent_DFA;
         std::queue<set> indexes_of_vertices_to_proceed;
         indexes_of_vertices_to_proceed.push(1 << index_of_starting_vertice);
         while (!indexes_of_vertices_to_proceed.empty()) {
@@ -180,7 +180,7 @@ signed main() {
     for (int& index : terminates) std::cin >> index;
     int index_of_starting_vertice;
     std::cin >> index_of_starting_vertice;
-    NondeterministicFiniteAutomation hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
+    NondeterministicFiniteAutomata hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
     auto dfa = hfa.convert_to_DFA();
     std::cout << dfa;
 }

@@ -1,4 +1,4 @@
-#include "Finite_automations.h"
+#include "Finite_automatas.h"
 
 void Convert_To_DFA_Test() {
     freopen("tests.txt", "r", stdin);
@@ -16,7 +16,7 @@ void Convert_To_DFA_Test() {
     for (int& index : terminates) std::cin >> index;
     int index_of_starting_vertice;
     std::cin >> index_of_starting_vertice;
-    NondeterministicFiniteAutomation hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
+    NondeterministicFiniteAutomata hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
     auto dfa = hfa.convert_to_DFA();
     std::cout << dfa;
 }
