@@ -8,6 +8,10 @@ Then int k, and k indexes of terminate vertices in random order.
 Last number - index of starting vertice (by default = 0)
 */
 
+bool is_epsilon_transition(const std::string& word) {
+    return word == "#";
+}
+
 typedef uint64_t set;
 bool contains(set set, int index) {
     return set & (1 << index);
@@ -83,7 +87,7 @@ private:
 public:
    
     /* Converts nondeterministic finite automaton to a deterministic one; 
-it correctly works for Automatas of size <= 60.*/
+    it correctly works for Automatas of size <= 60.*/
     FiniteAutomata<DFA_vertex_t> convert_to_DFA() const;
 
     bool contains_vertice(const vertex_t& vertex_index) const {
@@ -121,8 +125,27 @@ public:
 
     template<class T>
     friend std::ostream& operator<<(std::ostream& out, const FiniteAutomata<T>& fa);
-};
+private:
+    // Returns vertives that can be reached from start only by epsilon transitions
+    void reachable_by_epsilon_transitions(vertex_t start, std::vector<bool>& visited) const;
+public:
+    // Builds equivalent finite automation, where there are no epsilon transitions
+    void remove_epsilon_transitions();
 
+    void make_fdfa();
+
+    void fdfa_copy() const;
+
+    void make_complement_dfa();
+
+    void complemented_fdfa() const;
+
+    void make_minimal_fdfa();
+
+    void minimal_fdfa() const;
+
+    // TODO: Regular expressions
+};
 using NondeterministicFiniteAutomata = FiniteAutomata<NFA_vertex_t>;
 using DeterministicFiniteAutomata = FiniteAutomata<DFA_vertex_t>;
 
@@ -259,6 +282,42 @@ FiniteAutomata<vertex_t> FiniteAutomata<vertex_t>::normalized() const {
     copy.normalize();
     return copy;
 }
+
+template<typename vertex_t>
+void FiniteAutomata<vertex_t>::reachable_by_epsilon_transitions
+(vertex_t start, std::vector<bool>& visited) const {
+    for (const auto& e : _vertices[start]._edges) {
+        if (visited[e.end]) continue;
+        visited[e.end] = true;
+        if (is_epsilon_transition(e.word)) {
+            auto recursive_ans = reachable_by_epsilon_transitions(e.end, visited);
+        }
+    }    
+}
+
+
+template<typename vertex_t>
+void FiniteAutomata<vertex_t>::remove_epsilon_transitions() {
+    for (auto& [index, vertice]: _vertices) {
+        std::vector<bool> is_reachable_by_eps_transition(_vertices.size());
+        reachable_by_epsilon_transitions(index, is_reachable_by_eps_transition);
+        for (int i = 0; i < _vertices.size(); ++i) {
+            if (is_reachable_by_eps_transition[i]) {
+                for (const auto& e : _vertices[i]._edges) {
+                    vertice._edges.push_back(Edge<vertex_t>({index, e.end, e.word}));
+                }
+            }
+        }
+    }
+    for (auto& [_, vertice]: _vertices) {
+        std::vector<Edge<vertex_t>> edges_without_epsilons;
+        for (const auto& e : vertice._edges) {
+            if (!is_epsilon_transition(e.word)) edges_without_epsilons.push_back(e);
+        }
+        vertice._edges = edges_without_epsilons;
+    }
+}
+
 
 
 signed main() {
