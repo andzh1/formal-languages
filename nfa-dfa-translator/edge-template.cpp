@@ -38,7 +38,24 @@ struct OtherTypeClass<NFA_vertex_t> {
 };
 
 template<typename vertex_t>
+struct IsDfaClass {
+    // typedef ((std::is_same_v<vertex_t, DFA_vertex_t>)? NFA_vertex_t : DFA_vertex_t) value;
+    static const bool value = false;
+};
+
+template<>
+struct IsDfaClass<DFA_vertex_t> {
+    static const bool value = true;
+};
+
+
+template<typename vertex_t>
 using OtherType = typename OtherTypeClass<vertex_t>::value;
+
+template<typename vertex_t>
+bool IsDFA = IsDfaClass<vertex_t>::value;
+
+
 
 template<typename vertex_t>
 struct Edge {
@@ -49,6 +66,11 @@ struct Edge {
 
 using NFA_edge_t = Edge<NFA_vertex_t>;
 using DFA_edge_t = Edge<DFA_vertex_t>;
+
+template<typename vertex_t> class FiniteAutomata;
+using NondeterministicFiniteAutomata = FiniteAutomata<NFA_vertex_t>;
+using DeterministicFiniteAutomata = FiniteAutomata<DFA_vertex_t>;
+
 
 template<typename vertex_t>
 class FiniteAutomata
@@ -126,28 +148,33 @@ public:
     template<class T>
     friend std::ostream& operator<<(std::ostream& out, const FiniteAutomata<T>& fa);
 private:
-    // Returns vertives that can be reached from start only by epsilon transitions
+    // Returns vertives that can be reached from start only by epsilon transitions.
     void reachable_by_epsilon_transitions(vertex_t start, std::vector<bool>& visited) const;
+
+    DFA_vertex_t min_suitable_index_of_vertice() const;
 public:
-    // Builds equivalent finite automation, where there are no epsilon transitions
+    // Builds equivalent finite automation, where there are no epsilon transitions.
     void remove_epsilon_transitions();
 
+    // Builds equivalent complete (Full) DFA. That works for DFA only.
     void make_fdfa();
 
-    void fdfa_copy() const;
+    // Returns fdfa that is equivalent to this one.
+    DeterministicFiniteAutomata fdfa_copy() const;
 
-    void make_complement_dfa();
+    // Builds complement DFA (if word W is accepted by DFA, 
+    // it isn't accepted by complement one, and vice versa).
+    void make_complement_fdfa();
 
-    void complemented_fdfa() const;
+    // Returns complement DFA.
+    DeterministicFiniteAutomata complemented_fdfa() const;
 
-    void make_minimal_fdfa();
+    void make_minimal_fdfa(); // TODO:
 
     void minimal_fdfa() const;
 
     // TODO: Regular expressions
 };
-using NondeterministicFiniteAutomata = FiniteAutomata<NFA_vertex_t>;
-using DeterministicFiniteAutomata = FiniteAutomata<DFA_vertex_t>;
 
 template<typename V>
 std::string set_as_string(const V& set_to_print);
@@ -181,7 +208,6 @@ std::ostream& operator<<(std::ostream& out, const Edge<V>& edge) {
 
 }
 
-
 template<typename vertex_t>
 std::ostream& operator<<(std::ostream& out, const FiniteAutomata<vertex_t>& fa) {
     out << "Edges:\n";
@@ -196,6 +222,8 @@ std::ostream& operator<<(std::ostream& out, const FiniteAutomata<vertex_t>& fa) 
     }
     return out;
 }
+
+
 
 
 template<>
@@ -251,7 +279,13 @@ void FiniteAutomata<vertex_t>::normalize_one_edge(const Edge<vertex_t>& edge_to_
     set current_start = edge_to_normalize.start;
     set current_end = _vertices.size();
     for (int i = 0; i < edge_to_normalize.word.size() - 1; ++i) {
-        _vertices.insert(Vertice());
+        vertex_t index;
+        if (IsDFA<vertex_t>) {
+            index = (1ull << _vertices.size());
+        } else {
+            index = _vertices.size();
+        }
+        _vertices[index] = Vertice();
         Edge<vertex_t> current_edge({current_start, current_end, edge_to_normalize.word.substr(i, 1)});
         _vertices[current_start]._edges.push_back(current_edge);
         current_start = current_end;
@@ -266,10 +300,10 @@ template<typename vertex_t>
 void FiniteAutomata<vertex_t>::normalize() {
     std::vector<Edge<vertex_t>> edges;
     for (auto& v : _vertices) {
-        for (const Edge<vertex_t>& e : v._edges) {
+        for (const Edge<vertex_t>& e : v.second._edges) {
             edges.push_back(e);
         }
-        v._edges.clear();
+        v.second._edges.clear();
     }
     for (const Edge<vertex_t>& e : edges) {
         normalize_one_edge(e);
@@ -295,7 +329,6 @@ void FiniteAutomata<vertex_t>::reachable_by_epsilon_transitions
     }    
 }
 
-
 template<typename vertex_t>
 void FiniteAutomata<vertex_t>::remove_epsilon_transitions() {
     for (auto& [index, vertice]: _vertices) {
@@ -318,6 +351,64 @@ void FiniteAutomata<vertex_t>::remove_epsilon_transitions() {
     }
 }
 
+
+template<>
+DFA_vertex_t DeterministicFiniteAutomata::min_suitable_index_of_vertice() const {
+    DFA_vertex_t answer = 0;
+    for (auto const& [index, _] : _vertices) {
+        answer = std::max(answer, index);
+    }
+    return answer;
+}
+
+template<>
+void DeterministicFiniteAutomata::make_fdfa() {
+    Vertice stock;
+    DFA_vertex_t index_of_stock = min_suitable_index_of_vertice();
+    for (const auto& w : _letters) {
+        stock._edges.push_back(DFA_edge_t({index_of_stock, index_of_stock, w}));
+    }
+    normalize();
+    bool is_already_fdfa = true;
+    for (auto& [index, vertice] : _vertices) {
+        std::vector<bool> has_edge_with (_letters.size());
+        for (const auto& e : vertice._edges) {
+            has_edge_with[index_of_letter[e.word]] = true;
+        }
+        auto current_word_ptr = _letters.begin();
+        for (int i = 0; i < _letters.size(); ++i) {
+            ++current_word_ptr;
+            if (has_edge_with[i]) continue;
+            vertice._edges.push_back(DFA_edge_t({index, index_of_stock, *current_word_ptr}));
+            is_already_fdfa = false;
+        }
+    }
+    if (!is_already_fdfa) {
+        _vertices[index_of_stock] = stock;
+    }
+}
+
+template<>
+DeterministicFiniteAutomata DeterministicFiniteAutomata::fdfa_copy() const {
+    auto copy = *this;
+    copy.make_fdfa();
+    return copy;
+}
+
+template<>
+void DeterministicFiniteAutomata::make_complement_fdfa() {
+    make_fdfa();
+    for (auto& [_, vertice]: _vertices) {
+        vertice._is_terminate = !vertice._is_terminate;
+    }
+}
+
+template<>
+DeterministicFiniteAutomata DeterministicFiniteAutomata::complemented_fdfa() const {
+    auto copy = *this;
+    copy.make_complement_fdfa();
+    return copy;
+}
 
 
 signed main() {
