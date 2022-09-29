@@ -1,5 +1,0 @@
-#!/bin/bash
-rm -r bin/
-rm -r lib/
-rm -r build/
-echo "Cleared"
