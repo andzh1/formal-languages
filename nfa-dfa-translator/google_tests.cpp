@@ -7,21 +7,6 @@ TEST(OutputTest, TestVerticeAsString) {
     EXPECT_EQ("{1 }", vertice_as_string<DFA_vertex_t>(2));
 }
 
-class FATest: public ::testing::Test {
-
-};
-
-// TEST(ConstructorTest, TestBoth) {
-//     // EXPECT_NO_THROW(NondeterministicFiniteAutomata());
-//     // EXPECT_NO_THROW(DeterministicFiniteAutomata());
-//     int number_of_vertices = 3, number_of_edges = 2;
-
-//     std::vector<NFA_edge_t> edges({{0, 1, "a"}, {0, 2, "a"}});
-//     int number_of_terminate_vertices = 1;
-//     std::vector<int> terminates ({2});
-//     int index_of_starting_vertice = 0;
-//     EXPECT_NO_THROW(NondeterministicFiniteAutomata(edges, number_of_vertices, terminates, index_of_starting_vertice));
-// }
 
 TEST(FunctionsTest, TestAll) {
     ASSERT_TRUE(is_epsilon_transition("#"));
