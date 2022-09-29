@@ -2,6 +2,7 @@
 ## Some tools to work with formal languages.
 
 ## What can you find here:
+
 - Translator from nondeterministic finite automata (NFA) to deterministic finite automata (DFA).
 - Converter from DFA to complete DFA.
 - Converter from complete DFA to it's complement DFA.
