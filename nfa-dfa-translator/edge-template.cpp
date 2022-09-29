@@ -75,33 +75,22 @@ using DeterministicFiniteAutomata = FiniteAutomata<DFA_vertex_t>;
 template<typename vertex_t>
 class FiniteAutomata
 {
-private:
     typedef Edge<vertex_t> current_edge_t;
 
     struct Vertice {
         std::vector<current_edge_t> _edges;
         bool _is_terminate = false;
     };
+private:
     int index_of_starting_vertice = 0;
     std::set<word_t> _letters;
-    std::map<word_t, vertex_t> index_of_letter;
+    std::map<word_t, int> index_of_letter;
     std::map<vertex_t, Vertice> _vertices;
 public:
     FiniteAutomata(int index = 0): index_of_starting_vertice(index) {}
     
 private:
-    void _get_letters(const std::vector<current_edge_t>& edges, int index = 0) {
-        index_of_starting_vertice = index;
-        for (const current_edge_t& e : edges) {
-            _letters.insert((e.word));
-        }
-        auto iter_in_letters = _letters.begin();
-        int index_of_current_letter = 0;
-        while (iter_in_letters != _letters.end()) {
-            index_of_letter[*iter_in_letters] = index_of_current_letter;
-            ++index_of_current_letter; ++iter_in_letters;
-        }
-    }
+    void _get_letters(const std::vector<current_edge_t>& edges, int index = 0);
 
     void normalize_one_edge(const current_edge_t& edge_to_normalize);
 
@@ -120,20 +109,16 @@ public:
         _vertices[vertex_index] = vertice;
     }
     
+    std::map<vertex_t, Vertice> get_vertices() const {
+        return _vertices;
+    }
+
     size_t size() const {
         return _vertices.size();
     }
 
     FiniteAutomata(const std::vector<current_edge_t>& edges, int number_of_vertices, 
-    const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0) {
-        _get_letters(edges, index_of_starting_vertice);
-        for (const current_edge_t& e : edges) {
-            _vertices[e.start]._edges.push_back(e);
-        }
-        for (const int& index : indexes_of_terminate_vertices) {
-            _vertices[index]._is_terminate = true;
-        }
-    }
+    const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice = 0);
 
 public:
 
@@ -149,9 +134,9 @@ public:
     friend std::ostream& operator<<(std::ostream& out, const FiniteAutomata<T>& fa);
 private:
     // Returns vertives that can be reached from start only by epsilon transitions.
-    void reachable_by_epsilon_transitions(vertex_t start, std::vector<bool>& visited) const;
+    bool reachable_by_epsilon_transitions(vertex_t start, std::vector<bool>& visited) const;
 
-    DFA_vertex_t min_suitable_index_of_vertice() const;
+    vertex_t min_suitable_index_of_vertice() const;
 public:
     // Builds equivalent finite automation, where there are no epsilon transitions.
     void remove_epsilon_transitions();
@@ -162,12 +147,14 @@ public:
     // Returns fdfa that is equivalent to this one.
     DeterministicFiniteAutomata fdfa_copy() const;
 
-    // Builds complement DFA (if word W is accepted by DFA, 
-    // it isn't accepted by complement one, and vice versa).
-    void make_complement_fdfa();
+    /* Builds complement DFA (if word W is accepted by DFA, 
+    it isn't accepted by complement one, and vice versa).
+    You can also give a hint to program that it doesn't need 
+    to make your dfa complete, by passing true as argument.*/
+    void make_complement_fdfa(bool is_fdfa = false);
 
     // Returns complement DFA.
-    DeterministicFiniteAutomata complemented_fdfa() const;
+    DeterministicFiniteAutomata complemented_fdfa(bool is_fdfa = false) const;
 
     void make_minimal_fdfa(); // TODO:
 
@@ -177,20 +164,20 @@ public:
 };
 
 template<typename V>
-std::string set_as_string(const V& set_to_print);
+std::string vertice_as_string(const V& set_to_print);
 
 template<>
-std::string set_as_string(const NFA_vertex_t& vertex_to_print) {
+std::string vertice_as_string(const NFA_vertex_t& vertex_to_print) {
     int ip = 0;
-    std::string result = "{ ";
+    std::string result = "{";
     result += std::to_string(vertex_to_print) + "}";
     return result;
 }
 
 template<>
-std::string set_as_string(const DFA_vertex_t& vertex_to_print) {
+std::string vertice_as_string(const DFA_vertex_t& vertex_to_print) {
     int ip = 0;
-    std::string result = "{ ";
+    std::string result = "{";
     while ((1 << ip) <= vertex_to_print) {
         if (vertex_to_print & (1 << ip)) result += std::to_string(ip) + " ";
         ++ip;
@@ -201,9 +188,9 @@ std::string set_as_string(const DFA_vertex_t& vertex_to_print) {
 
 template<typename V>
 std::ostream& operator<<(std::ostream& out, const Edge<V>& edge) {
-    out << set_as_string(edge.start);
+    out << vertice_as_string(edge.start);
     out << " -> " << edge.word << " -> ";
-    out << set_as_string(edge.end);
+    out << vertice_as_string(edge.end);
     return out;
 
 }
@@ -218,13 +205,38 @@ std::ostream& operator<<(std::ostream& out, const FiniteAutomata<vertex_t>& fa) 
     }
     out << "\nTerminate vertices:\n";
     for (const auto& vertice : fa._vertices) {
-        if (vertice.second._is_terminate) out << set_as_string(vertice.first);
+        if (vertice.second._is_terminate) out << vertice_as_string(vertice.first);
     }
     return out;
 }
 
 
+template<typename vertex_t>
+void FiniteAutomata<vertex_t>::_get_letters(const std::vector<current_edge_t>& edges, int index) {
+    index_of_starting_vertice = index;
+    for (const current_edge_t& e : edges) {
+        _letters.insert(e.word);
+    }
+    auto iter_in_letters = _letters.begin();
+    int index_of_current_letter = 0;
+    while (iter_in_letters != _letters.end()) {
+        index_of_letter[*iter_in_letters] = index_of_current_letter;
+        ++index_of_current_letter; ++iter_in_letters;
+    }
+}
 
+template<typename vertex_t>
+FiniteAutomata<vertex_t>::FiniteAutomata(const std::vector<current_edge_t>& edges, int number_of_vertices, 
+const std::vector<int>& indexes_of_terminate_vertices, int index_of_starting_vertice) {
+    _get_letters(edges, index_of_starting_vertice);
+    for (const current_edge_t& e : edges) {
+        _vertices[e.start]._edges.push_back(e);
+        if (!contains_vertice(e.end)) _vertices[e.end] = Vertice();
+    }
+    for (const int& index : indexes_of_terminate_vertices) {
+        _vertices[index]._is_terminate = true;
+    }
+}
 
 template<>
 bool FiniteAutomata<NFA_vertex_t>::is_terminate(const DFA_vertex_t& dfa_vertex) const {
@@ -237,6 +249,8 @@ bool FiniteAutomata<NFA_vertex_t>::is_terminate(const DFA_vertex_t& dfa_vertex) 
 template<>
 DeterministicFiniteAutomata NondeterministicFiniteAutomata::convert_to_DFA() const {
     DeterministicFiniteAutomata equivalent_DFA;
+    equivalent_DFA.index_of_letter = index_of_letter;
+    equivalent_DFA._letters = _letters;
     std::queue<set> indexes_of_vertices_to_proceed;
     indexes_of_vertices_to_proceed.push(1 << index_of_starting_vertice);
     while (!indexes_of_vertices_to_proceed.empty()) {
@@ -276,16 +290,11 @@ DeterministicFiniteAutomata NondeterministicFiniteAutomata::convert_to_DFA() con
 
 template<typename vertex_t>
 void FiniteAutomata<vertex_t>::normalize_one_edge(const Edge<vertex_t>& edge_to_normalize) {
-    set current_start = edge_to_normalize.start;
-    set current_end = _vertices.size();
+    vertex_t current_start = edge_to_normalize.start;
+    vertex_t current_end = _vertices.size();
+    current_end = min_suitable_index_of_vertice(); 
     for (int i = 0; i < edge_to_normalize.word.size() - 1; ++i) {
-        vertex_t index;
-        if (IsDFA<vertex_t>) {
-            index = (1ull << _vertices.size());
-        } else {
-            index = _vertices.size();
-        }
-        _vertices[index] = Vertice();
+        _vertices[current_end] = Vertice();
         Edge<vertex_t> current_edge({current_start, current_end, edge_to_normalize.word.substr(i, 1)});
         _vertices[current_start]._edges.push_back(current_edge);
         current_start = current_end;
@@ -294,6 +303,10 @@ void FiniteAutomata<vertex_t>::normalize_one_edge(const Edge<vertex_t>& edge_to_
     Edge<vertex_t> last_edge({current_start, edge_to_normalize.end, 
     edge_to_normalize.word.substr(edge_to_normalize.word.size() - 1, 1)});
     _vertices[current_start]._edges.push_back(last_edge);
+    _letters.erase(edge_to_normalize.word);
+    for (int i = 0; i < edge_to_normalize.word.size(); ++i) {
+        _letters.insert(edge_to_normalize.word.substr(i, 1));
+    }
 }
 
 template<typename vertex_t>
@@ -318,29 +331,38 @@ FiniteAutomata<vertex_t> FiniteAutomata<vertex_t>::normalized() const {
 }
 
 template<typename vertex_t>
-void FiniteAutomata<vertex_t>::reachable_by_epsilon_transitions
+bool FiniteAutomata<vertex_t>::reachable_by_epsilon_transitions
 (vertex_t start, std::vector<bool>& visited) const {
+    bool reaches_terminate = _vertices[start]._is_terminate;
     for (const auto& e : _vertices[start]._edges) {
         if (visited[e.end]) continue;
         visited[e.end] = true;
         if (is_epsilon_transition(e.word)) {
-            auto recursive_ans = reachable_by_epsilon_transitions(e.end, visited);
+            reaches_terminate |= reachable_by_epsilon_transitions(e.end, visited);
         }
-    }    
+    }
+    return reaches_terminate;
 }
 
 template<typename vertex_t>
 void FiniteAutomata<vertex_t>::remove_epsilon_transitions() {
+    std::vector<std::vector<bool>> is_reachable_by_eps_transition
+    (_vertices.size(), std::vector<bool>(_vertices.size()));
+    int number_of_vertice = 0;
     for (auto& [index, vertice]: _vertices) {
-        std::vector<bool> is_reachable_by_eps_transition(_vertices.size());
-        reachable_by_epsilon_transitions(index, is_reachable_by_eps_transition);
+        reachable_by_epsilon_transitions(index, is_reachable_by_eps_transition[number_of_vertice]);
+        ++number_of_vertice;
+    }
+    number_of_vertice = 0;
+    for (auto& [index, vertice]: _vertices) {
         for (int i = 0; i < _vertices.size(); ++i) {
-            if (is_reachable_by_eps_transition[i]) {
+            if (is_reachable_by_eps_transition[number_of_vertice][i]) {
                 for (const auto& e : _vertices[i]._edges) {
                     vertice._edges.push_back(Edge<vertex_t>({index, e.end, e.word}));
                 }
             }
         }
+        ++number_of_vertice;
     }
     for (auto& [_, vertice]: _vertices) {
         std::vector<Edge<vertex_t>> edges_without_epsilons;
@@ -351,14 +373,19 @@ void FiniteAutomata<vertex_t>::remove_epsilon_transitions() {
     }
 }
 
-
-template<>
+template<> 
 DFA_vertex_t DeterministicFiniteAutomata::min_suitable_index_of_vertice() const {
     DFA_vertex_t answer = 0;
     for (auto const& [index, _] : _vertices) {
         answer = std::max(answer, index);
     }
-    return answer;
+    return answer + 1; 
+}
+
+
+template<> 
+NFA_vertex_t NondeterministicFiniteAutomata::min_suitable_index_of_vertice() const {
+    return _vertices.size(); 
 }
 
 template<>
@@ -373,11 +400,10 @@ void DeterministicFiniteAutomata::make_fdfa() {
     for (auto& [index, vertice] : _vertices) {
         std::vector<bool> has_edge_with (_letters.size());
         for (const auto& e : vertice._edges) {
-            has_edge_with[index_of_letter[e.word]] = true;
+            has_edge_with[index_of_letter[e.word]] = true; // FIXME:
         }
         auto current_word_ptr = _letters.begin();
-        for (int i = 0; i < _letters.size(); ++i) {
-            ++current_word_ptr;
+        for (int i = 0; i < _letters.size() && current_word_ptr != _letters.end(); ++i, ++current_word_ptr) {
             if (has_edge_with[i]) continue;
             vertice._edges.push_back(DFA_edge_t({index, index_of_stock, *current_word_ptr}));
             is_already_fdfa = false;
@@ -396,38 +422,17 @@ DeterministicFiniteAutomata DeterministicFiniteAutomata::fdfa_copy() const {
 }
 
 template<>
-void DeterministicFiniteAutomata::make_complement_fdfa() {
-    make_fdfa();
+void DeterministicFiniteAutomata::make_complement_fdfa(bool is_fdfa) {
+    if (!is_fdfa) make_fdfa();
     for (auto& [_, vertice]: _vertices) {
         vertice._is_terminate = !vertice._is_terminate;
     }
 }
 
 template<>
-DeterministicFiniteAutomata DeterministicFiniteAutomata::complemented_fdfa() const {
+DeterministicFiniteAutomata DeterministicFiniteAutomata::complemented_fdfa(bool is_fdfa) const {
     auto copy = *this;
-    copy.make_complement_fdfa();
+    copy.make_complement_fdfa(is_fdfa);
     return copy;
 }
 
-
-signed main() {
-    freopen("tests.txt", "r", stdin);
-    freopen("output.txt", "w", stdout);
-    int number_of_vertices, number_of_edges;
-    std::cin >> number_of_vertices >> number_of_edges;
-
-    std::vector<NFA_edge_t> edges(number_of_edges);
-    for (NFA_edge_t& edge : edges) {
-        std::cin >> edge.start >> edge.end >> edge.word;
-    }
-    int number_of_terminate_vertices;
-    std::cin >> number_of_terminate_vertices;
-    std::vector<int> terminates (number_of_terminate_vertices);
-    for (int& index : terminates) std::cin >> index;
-    int index_of_starting_vertice;
-    std::cin >> index_of_starting_vertice;
-    NondeterministicFiniteAutomata hfa(edges, number_of_vertices, terminates, index_of_starting_vertice);
-    auto dfa = hfa.convert_to_DFA();
-    std::cout << dfa;
-}
