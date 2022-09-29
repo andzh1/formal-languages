@@ -1,4 +1,4 @@
-#include "edge-template.h"
+#include "Finite_automatas.h"
 
 signed main() {
     freopen("tests.txt", "r", stdin);
