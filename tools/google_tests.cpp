@@ -1,4 +1,5 @@
-#include "Finite_automatas.h"
+#include "Finite_automatas.cpp"
+// #include "Finite_automatas.h"
 
 #include "gtest/gtest.h"
 
@@ -13,6 +14,11 @@ TEST(FunctionsTest, TestAll) {
     ASSERT_FALSE(is_epsilon_transition("."));
     ASSERT_TRUE(contains(2, 1));
     ASSERT_FALSE(contains(2, 4));
+    NFA_edge_t a ({1, 2, "a"}), b({1, 2, "b"});
+    ASSERT_TRUE(a < b);
+    b.word = "a";
+    a.start = 0;
+    ASSERT_TRUE(a < b);
 }
 
 TEST(MinorMethodsTest, TestContains) {
@@ -158,7 +164,32 @@ TEST(CopyComplementFdfaTest, TestAll) {
     EXPECT_TRUE(terminate_changed);
 }
 
+
+TEST(MinimalFdfaTest, TestMakeMinimalTest) {
+    DeterministicFiniteAutomata dfa({{0, 1, "a"}, {0, 2, "b"}}, 3, {1, 2}, 0);
+    dfa.make_minimal_fdfa();
+    auto fdfa_vertices = dfa.get_vertices();
+    ASSERT_TRUE(fdfa_vertices.size() == 3);
+    ASSERT_TRUE(fdfa_vertices[2]._is_terminate);
+    ASSERT_EQ(fdfa_vertices[0]._edges[0].word, "a");
+    ASSERT_EQ(fdfa_vertices[0]._edges[1].word, "b");
+    ASSERT_EQ(fdfa_vertices[0]._edges[0].end, 2);
+    ASSERT_EQ(fdfa_vertices[0]._edges[1].end, 2);
+}
+
+TEST(MinimalFdfaTest, TestCopyMinimalTest) {
+    DeterministicFiniteAutomata dfa({{0, 1, "a"}, {0, 2, "b"}}, 3, {1, 2}, 0);
+    auto copy = dfa.minimal_fdfa();
+    dfa.make_minimal_fdfa();
+    auto dfa_vertices = dfa.get_vertices();
+    auto copy_vertices = copy.get_vertices();
+    ASSERT_EQ(dfa_vertices.size(), copy_vertices.size());
+    for (int i = 0; i < dfa_vertices.size(); ++i) {
+        ASSERT_TRUE(dfa_vertices[i] == copy_vertices[i]);
+    }
+}
+
 int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

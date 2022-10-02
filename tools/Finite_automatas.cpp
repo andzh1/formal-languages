@@ -1,5 +1,6 @@
 #include <bits/stdc++.h>
 #include <type_traits>
+#include <assert.h>
 /*
 Input format: n - number of vectices, m - number of sequences.
 Then n sequences of tuples (int, int, std::string) - indexes of vertices and word on edge between them;
@@ -62,6 +63,27 @@ struct Edge {
     vertex_t start;
     vertex_t end;
     word_t word;
+
+    bool operator<(const Edge& other) const {
+        if (word != other.word) return word < other.word;
+        return start < other.start || (start == other.start && end < other.end);
+    }
+
+    bool operator==(const Edge& other) const {
+        return !(*this < other) && !(other < *this);
+    }
+
+    bool operator!=(const Edge& other) const {
+        return !(*this == other);
+    }
+
+    // Edge& operator=(const Edge& other) {
+    //     start = other.start;
+    //     end = other.end;
+    //     word = other.word;
+    //     return *this;
+    // }
+
 };
 
 using NFA_edge_t = Edge<NFA_vertex_t>;
@@ -80,6 +102,19 @@ class FiniteAutomata
     struct Vertice {
         std::vector<current_edge_t> _edges;
         bool _is_terminate = false;
+
+        bool operator==(const Vertice& other) const {
+            if (_is_terminate != other._is_terminate) return false;
+            auto this_edges_copy = _edges;
+            std::sort(this_edges_copy.begin(), this_edges_copy.end());
+            auto other_edges_copy = other._edges;
+            std::sort(other_edges_copy.begin(), other_edges_copy.end());
+            if (_edges.size() != other._edges.size()) return false;
+            for (int i = 0; i < _edges.size(); ++i) {
+                if (this_edges_copy[i] != other_edges_copy[i]) return false;
+            }
+            return true;
+        }
     };
 private:
     int index_of_starting_vertice = 0;
@@ -156,9 +191,13 @@ public:
     // Returns complement DFA.
     DeterministicFiniteAutomata complemented_fdfa(bool is_fdfa = false) const;
 
-    void make_minimal_fdfa(); // TODO:
+private:
+    bool are_in_same_class(const DFA_vertex_t& first, const DFA_vertex_t& second,
+    const std::map<DFA_vertex_t, DFA_vertex_t>& class_of_vertice) const;
+public:
+    void make_minimal_fdfa(bool is_fdfa = false); // TODO:
 
-    void minimal_fdfa() const;
+    DeterministicFiniteAutomata minimal_fdfa(bool is_fdfa = false) const;
 
     // TODO: Regular expressions
 };
@@ -436,3 +475,92 @@ DeterministicFiniteAutomata DeterministicFiniteAutomata::complemented_fdfa(bool 
     return copy;
 }
 
+
+template<>
+bool DeterministicFiniteAutomata::are_in_same_class(const DFA_vertex_t& first, 
+const DFA_vertex_t& second, 
+const std::map<DFA_vertex_t, DFA_vertex_t>& class_of_vertice) const {
+    assert(_vertices.at(first)._edges.size() == _vertices.at(second)._edges.size());
+    for (int i = 0; i < _vertices.at(first)._edges.size(); ++i) {
+        auto first_edge = _vertices.at(first)._edges[i];
+        auto second_edge = _vertices.at(second)._edges[i];
+        assert(first_edge.word == second_edge.word); // TODO: remove
+        if (class_of_vertice.at(first_edge.end) != class_of_vertice.at(second_edge.end)) 
+            return false;
+    }
+    return true;
+}
+
+template<>
+void DeterministicFiniteAutomata::make_minimal_fdfa(bool is_fdfa) {
+    if (!is_fdfa) make_fdfa();
+    for (auto& [_, vertice] : _vertices) {
+        std::sort(vertice._edges.begin(), vertice._edges.end());
+    }
+    std::vector<std::vector<DFA_vertex_t>> equivalency_classes (2);
+    std::map<DFA_vertex_t, DFA_vertex_t> class_of_vertice;
+    for (auto const& [index, vertice] : _vertices) {
+        equivalency_classes[vertice._is_terminate].push_back(index);
+        class_of_vertice[index] = vertice._is_terminate;
+    }
+    while(true) {
+        DFA_vertex_t counter_of_classes = 0;
+        std::map<DFA_vertex_t, bool> updated;
+        std::vector<std::vector<DFA_vertex_t>> new_equivalency_classes;
+        std::map<DFA_vertex_t, DFA_vertex_t> new_class_of_vertice;
+
+        for (auto const& [index, _] : _vertices) {
+            updated[index] = false;
+        }
+        for (const auto& current_class : equivalency_classes) {
+            for (int i = 0; i < current_class.size(); ++i) {
+                auto vertex_index = current_class[i];
+                if (updated[vertex_index]) continue;
+                new_equivalency_classes.push_back({vertex_index});
+                updated[vertex_index] = true;
+                new_class_of_vertice[vertex_index] = counter_of_classes;
+                ++counter_of_classes;
+                for (int j = i + 1; j < current_class.size(); ++j) {
+                    auto next_vertex_index = current_class[j];
+                    if (updated[next_vertex_index]) continue;
+                    if (are_in_same_class(vertex_index, next_vertex_index, class_of_vertice)) {
+                        updated[next_vertex_index] = true;
+                        new_class_of_vertice[next_vertex_index] = new_class_of_vertice[vertex_index];
+                        new_equivalency_classes.back().push_back(next_vertex_index);
+                    }
+                }
+            }
+        }
+        bool are_equal = new_equivalency_classes.size() == equivalency_classes.size();
+        if (new_equivalency_classes.size() == equivalency_classes.size()) {
+            break;
+        }
+        equivalency_classes = new_equivalency_classes;
+        class_of_vertice = new_class_of_vertice;
+    }
+
+    std::vector<DFA_edge_t> edges_of_min_fdfa;
+    std::vector<int> indexes_of_terminate_vertices;
+    for (const auto& current_class : equivalency_classes) {
+        DFA_vertex_t element_of_class = current_class[0];
+        for (const auto& edge : _vertices[element_of_class]._edges) {
+            edges_of_min_fdfa.push_back({class_of_vertice.at(element_of_class), 
+                                    class_of_vertice.at(edge.end), edge.word});
+
+        }
+        if (_vertices[element_of_class]._is_terminate) {
+            indexes_of_terminate_vertices.push_back(class_of_vertice[element_of_class]); 
+        }
+    }
+
+    *this = DeterministicFiniteAutomata(edges_of_min_fdfa, equivalency_classes.size(), 
+    indexes_of_terminate_vertices, class_of_vertice[index_of_starting_vertice]);
+}
+
+
+template<>
+DeterministicFiniteAutomata DeterministicFiniteAutomata::minimal_fdfa(bool is_fdfa) const {
+    auto copy = *this;
+    copy.make_minimal_fdfa();
+    return copy;
+}
